@@ -49,6 +49,13 @@ objects:
         type: Docker
         dockerStrategy:
           dockerfilePath: Dockerfile
+      resources:
+        requests:
+          cpu: "1000m"
+          memory: "1Gi"
+        limits:
+          cpu: "2000m"
+          memory: "2Gi"
       output:
         to:
           kind: ImageStreamTag
