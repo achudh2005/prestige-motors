@@ -86,7 +86,7 @@ objects:
         spec:
           containers:
             - name: "${APPLICATION_NAME}"
-              image: "${APPLICATION_NAME}:latest"
+              image: "image-registry.openshift-image-registry.svc:5000/achudh-dev/${APPLICATION_NAME}:latest"
               ports:
                 - containerPort: 3000
                   protocol: TCP
