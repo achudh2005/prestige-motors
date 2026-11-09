@@ -1,0 +1,145 @@
+apiVersion: template.openshift.io/v1
+kind: Template
+metadata:
+  name: prestige-motors-template
+  annotations:
+    description: "Turnkey Red Hat OpenShift deployment template for Prestige Luxury Motors (Next.js App Router)"
+    tags: "nodejs,nextjs,luxury,frontend"
+    iconClass: "icon-nodejs"
+parameters:
+  - name: APPLICATION_NAME
+    description: "The name of the application."
+    value: "prestige-motors"
+    required: true
+  - name: GIT_REPO_URL
+    description: "Git repository source URL."
+    value: "https://github.com/achudh2005/prestige-motors.git"
+    required: true
+  - name: GIT_BRANCH
+    description: "Git reference/branch to build."
+    value: "main"
+    required: true
+  - name: REPLICA_COUNT
+    description: "Number of deployment replica pods."
+    value: "2"
+    required: true
+objects:
+  # 1. ImageStream
+  - apiVersion: image.openshift.io/v1
+    kind: ImageStream
+    metadata:
+      name: "${APPLICATION_NAME}"
+      labels:
+        app: "${APPLICATION_NAME}"
+
+  # 2. BuildConfig (Docker Strategy from Git)
+  - apiVersion: build.openshift.io/v1
+    kind: BuildConfig
+    metadata:
+      name: "${APPLICATION_NAME}"
+      labels:
+        app: "${APPLICATION_NAME}"
+    spec:
+      source:
+        type: Git
+        git:
+          uri: "${GIT_REPO_URL}"
+          ref: "${GIT_BRANCH}"
+      strategy:
+        type: Docker
+        dockerStrategy:
+          dockerfilePath: Dockerfile
+      output:
+        to:
+          kind: ImageStreamTag
+          name: "${APPLICATION_NAME}:latest"
+      triggers:
+        - type: ConfigChange
+        - type: GitHub
+          github:
+            secret: "prestige-webhook-secret"
+
+  # 3. Deployment
+  - apiVersion: apps/v1
+    kind: Deployment
+    metadata:
+      name: "${APPLICATION_NAME}"
+      labels:
+        app: "${APPLICATION_NAME}"
+        app.openshift.io/runtime: nodejs
+    spec:
+      replicas: "${{REPLICA_COUNT}}"
+      selector:
+        matchLabels:
+          app: "${APPLICATION_NAME}"
+      template:
+        metadata:
+          labels:
+            app: "${APPLICATION_NAME}"
+        spec:
+          containers:
+            - name: "${APPLICATION_NAME}"
+              image: "${APPLICATION_NAME}:latest"
+              ports:
+                - containerPort: 3000
+                  protocol: TCP
+                  name: http
+              env:
+                - name: NODE_ENV
+                  value: "production"
+                - name: PORT
+                  value: "3000"
+              resources:
+                requests:
+                  cpu: "100m"
+                  memory: "256Mi"
+                limits:
+                  cpu: "1000m"
+                  memory: "1Gi"
+              livenessProbe:
+                httpGet:
+                  path: /
+                  port: 3000
+                initialDelaySeconds: 30
+                periodSeconds: 15
+              readinessProbe:
+                httpGet:
+                  path: /
+                  port: 3000
+                initialDelaySeconds: 10
+                periodSeconds: 10
+
+  # 4. Service
+  - apiVersion: v1
+    kind: Service
+    metadata:
+      name: "${APPLICATION_NAME}"
+      labels:
+        app: "${APPLICATION_NAME}"
+    spec:
+      ports:
+        - name: 3000-tcp
+          port: 3000
+          protocol: TCP
+          targetPort: 3000
+      selector:
+        app: "${APPLICATION_NAME}"
+      type: ClusterIP
+
+  # 5. Route (Edge TLS Termination)
+  - apiVersion: route.openshift.io/v1
+    kind: Route
+    metadata:
+      name: "${APPLICATION_NAME}"
+      labels:
+        app: "${APPLICATION_NAME}"
+    spec:
+      to:
+        kind: Service
+        name: "${APPLICATION_NAME}"
+        weight: 100
+      port:
+        targetPort: 3000-tcp
+      tls:
+        termination: edge
+        insecureEdgeTerminationPolicy: Redirect

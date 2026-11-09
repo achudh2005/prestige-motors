@@ -1,0 +1,16 @@
+apiVersion: route.openshift.io/v1
+kind: Route
+metadata:
+  name: prestige-motors
+  labels:
+    app: prestige-motors
+spec:
+  to:
+    kind: Service
+    name: prestige-motors
+    weight: 100
+  port:
+    targetPort: 3000-tcp
+  tls:
+    termination: edge
+    insecureEdgeTerminationPolicy: Redirect

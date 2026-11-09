@@ -1,0 +1,15 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: prestige-motors
+  labels:
+    app: prestige-motors
+spec:
+  ports:
+    - name: 3000-tcp
+      port: 3000
+      protocol: TCP
+      targetPort: 3000
+  selector:
+    app: prestige-motors
+  type: ClusterIP
